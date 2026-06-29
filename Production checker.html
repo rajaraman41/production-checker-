@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSV Agent Report Generator</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --line: #d9e2f3;
+      --blue: #1f4e78;
+      --blue-soft: #d9eaf7;
+      --green: #2f855a;
+      --red: #c2410c;
+      --amber: #b7791f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Calibri, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 18px 42px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.15;
+      color: var(--blue);
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 22px rgba(31, 78, 120, 0.08);
+      overflow: hidden;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 210px 180px;
+      gap: 14px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+      align-items: center;
+    }
+
+    .dropzone {
+      position: relative;
+      min-height: 112px;
+      border: 2px dashed #9ab8d1;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      background: #fafdff;
+      color: var(--blue);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .dropzone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .drop-title {
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .drop-detail {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    select,
+    button {
+      width: 100%;
+      height: 42px;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    select {
+      border: 1px solid #b8c7d8;
+      background: #fff;
+      color: var(--ink);
+      padding: 0 10px;
+    }
+
+    button {
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      background: #94a3b8;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      min-height: 86px;
+    }
+
+    .kpi span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .kpi strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 24px;
+      color: var(--blue);
+    }
+
+    .message {
+      padding: 0 16px 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .message.error {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .message.ok {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .preview {
+      padding: 0 16px 18px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--blue);
+      color: #fff;
+      text-align: left;
+      padding: 9px 8px;
+      border: 1px solid var(--blue);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 8px;
+      border: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    .status-meets {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .status-below {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .status-warn {
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    @media (max-width: 820px) {
+      .topbar,
+      .controls {
+        display: block;
+      }
+
+      .field,
+      button {
+        margin-top: 12px;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+  /* ===== LOGIN & ADMIN STYLES ===== */
+  #loginOverlay, #adminOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: linear-gradient(135deg, #1f4e78 0%, #2d6ca2 60%, #1a3a5c 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Calibri, Arial, sans-serif;
+  }
+  #adminOverlay { display: none; }
+  .auth-box {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.30);
+    padding: 40px 36px 34px;
+    width: 360px;
+    text-align: center;
+  }
+  .auth-box .auth-icon { font-size: 42px; margin-bottom: 8px; }
+  .auth-box h2 { margin: 0 0 4px; font-size: 21px; color: #1f4e78; }
+  .auth-box .auth-sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+  .auth-field { text-align: left; margin-bottom: 14px; }
+  .auth-field label { display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 5px; }
+  .auth-field input {
+    width: 100%; height: 42px; border: 1.5px solid #b8c7d8; border-radius: 7px;
+    padding: 0 12px; font: inherit; font-size: 14px; color: #1f2937;
+    box-sizing: border-box; outline: none; transition: border-color 0.15s;
+  }
+  .auth-field input:focus { border-color: #1f4e78; }
+  .auth-btn {
+    width: 100%; height: 44px; background: #1f4e78; color: #fff; border: 0;
+    border-radius: 7px; font: inherit; font-size: 15px; font-weight: 700;
+    cursor: pointer; margin-top: 6px; transition: background 0.15s;
+  }
+  .auth-btn:hover { background: #163a5e; }
+  .auth-btn.secondary {
+    background: #f1f5f9; color: #1f4e78; border: 1.5px solid #b8c7d8;
+    margin-top: 10px; font-size: 13px;
+  }
+  .auth-btn.secondary:hover { background: #e2eaf4; }
+  .auth-error { color: #c2410c; font-size: 13px; font-weight: 700; margin-top: 10px; min-height: 18px; }
+  .admin-box { width: 480px; max-height: 90vh; overflow-y: auto; text-align: left; }
+  .admin-box h2 { text-align: center; }
+  .user-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  .user-table th { background: #1f4e78; color: #fff; padding: 8px 10px; text-align: left; }
+  .user-table td { padding: 8px 10px; border-bottom: 1px solid #d9e2f3; vertical-align: middle; }
+  .user-table tr:hover td { background: #f0f6ff; }
+  .del-btn { background: #fee2e2; color: #c2410c; border: none; border-radius: 4px; padding: 3px 10px; cursor: pointer; font-weight: 700; font-size: 12px; }
+  .add-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 8px; align-items: end; }
+  .add-row input { height: 36px; border: 1.5px solid #b8c7d8; border-radius: 6px; padding: 0 10px; font: inherit; font-size: 13px; box-sizing: border-box; }
+  .add-row button { height: 36px; background: #1f4e78; color: #fff; border: none; border-radius: 6px; padding: 0 14px; cursor: pointer; font-weight: 700; font-size: 13px; }
+  .section-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 20px 0 6px; }
+  .admin-sep { border: 0; border-top: 1px solid #d9e2f3; margin: 18px 0; }
+  body.locked main { visibility: hidden; pointer-events: none; }
+  .badge { display: inline-block; background: #d9eaf7; color: #1f4e78; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+
+  </style>
+</head>
+<body>
+
+  <div id="loginOverlay">
+    <div class="auth-box">
+      <div class="auth-icon">&#128274;</div>
+      <h2>Production Checker </h2>
+      <p class="auth-sub">Sign in with your Employee ID &amp; Password</p>
+      <div class="auth-field">
+        <label for="loginEmpId">Employee ID</label>
+        <input type="text" id="loginEmpId" placeholder="e.g. EMP001" autocomplete="username" />
+      </div>
+      <div class="auth-field">
+        <label for="loginPass">Password</label>
+        <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <button class="auth-btn" onclick="attemptLogin()">Sign In</button>
+      <div class="auth-error" id="loginError"></div>
+      <button class="auth-btn secondary" onclick="showAdmin()">&#9881; Admin Panel</button>
+    </div>
+  </div>
+
+  <div id="adminOverlay">
+    <div class="auth-box admin-box">
+      <div class="auth-icon">&#128737;</div>
+      <h2>Admin Panel</h2>
+      <p class="auth-sub">Manage employee access credentials</p>
+      <div class="auth-field">
+        <label for="adminPass">Admin Password</label>
+        <input type="password" id="adminPass" placeholder="Enter admin password" />
+      </div>
+      <button class="auth-btn" onclick="unlockAdmin()">Unlock</button>
+      <div class="auth-error" id="adminError"></div>
+      <div id="adminContent" style="display:none">
+        <hr class="admin-sep">
+        <div class="section-label">Current Users</div>
+        <table class="user-table">
+          <thead><tr><th>Employee ID</th><th>Password</th><th>Role</th><th></th></tr></thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+        <div class="section-label">Add New User</div>
+        <div class="add-row">
+          <input type="text" id="newEmpId" placeholder="Employee ID" />
+          <input type="password" id="newPass" placeholder="Password" />
+          <button onclick="addUser()">Add</button>
+        </div>
+        <div class="auth-error" id="addError"></div>
+        <hr class="admin-sep">
+        <button class="auth-btn secondary" onclick="closeAdmin()">Back to Login</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h1>CSV Agent Report Generator</h1>
+        <p class="subtitle">Upload L1 or L2 CSV, then download an Excel workbook in the agent-wise matrix format.</p>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="controls">
+        <div id="dropzone" class="dropzone">
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+          <div>
+            <div class="drop-title">Drop CSV here or click to upload</div>
+            <div id="fileName" class="drop-detail">Expected columns: case_id, status, created_by, created_at, artifact_type, details</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="roleSelect">Report Type</label>
+          <select id="roleSelect">
+            <option value="auto">Auto detect</option>
+            <option value="L1">L1 report</option>
+            <option value="L2">L2 report</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="downloadBtn" type="button" disabled>Download Excel</button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="kpi"><span>Total Records</span><strong id="kpiRecords">-</strong></div>
+        <div class="kpi"><span>Agents</span><strong id="kpiAgents">-</strong></div>
+        <div class="kpi"><span>Date Range</span><strong id="kpiDate">-</strong></div>
+        <div class="kpi"><span>Report Type</span><strong id="kpiRole">-</strong></div>
+      </div>
+
+      <div id="message" class="message">No CSV loaded yet.</div>
+      <div class="preview">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Cases Completed</th>
+              <th>Working Days</th>
+              <th>Avg / Active Day</th>
+              <th>Target Total</th>
+              <th>% Obtained</th>
+              <th>Status</th>
+              <th>Whitelist %</th>
+              <th>Suspicious %</th>
+            </tr>
+          </thead>
+          <tbody id="previewRows">
+            <tr><td colspan="9">Upload a CSV to preview the agent matrix.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+
+  // === ACCESS CONTROL ===
+  // Change ADMIN_PASSWORD to protect the Admin Panel
+  var ADMIN_PASSWORD = "Santu@aml";
+
+  // Default users loaded on first run (edit here or use Admin Panel)
+  var DEFAULT_USERS = [
+    { empId: "rajaraman@4141", password: "Santu@aml", role: "Admin" },
+    { empId: "107716",  password: "Sharmila@aml",  role: "User"  }
+  ];
+
+  var STORAGE_KEY = "csv_report_users_v1";
+
+  function loadUsers() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      return s ? JSON.parse(s) : DEFAULT_USERS.slice();
+    } catch(e) { return DEFAULT_USERS.slice(); }
+  }
+  function saveUsers(u) { localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); }
+
+  var users = loadUsers();
+
+  document.body.classList.add("locked");
+
+  document.getElementById("loginEmpId").addEventListener("keydown", function(e){ if(e.key==="Enter") attemptLogin(); });
+  document.getElementById("loginPass").addEventListener("keydown",  function(e){ if(e.key==="Enter") attemptLogin(); });
+
+  function attemptLogin() {
+    var empId = document.getElementById("loginEmpId").value.trim();
+    var pass  = document.getElementById("loginPass").value;
+    var match = users.filter(function(u){ return u.empId===empId && u.password===pass; })[0];
+    if (match) {
+      document.getElementById("loginOverlay").style.display = "none";
+      document.body.classList.remove("locked");
+    } else {
+      document.getElementById("loginError").textContent = "Invalid Employee ID or Password.";
+      document.getElementById("loginPass").value = "";
+    }
+  }
+
+  function showAdmin() {
+    document.getElementById("loginOverlay").style.display = "none";
+    document.getElementById("adminOverlay").style.display = "flex";
+    document.getElementById("adminContent").style.display = "none";
+    document.getElementById("adminPass").value = "";
+    document.getElementById("adminError").textContent = "";
+  }
+
+  function unlockAdmin() {
+    if (document.getElementById("adminPass").value !== ADMIN_PASSWORD) {
+      document.getElementById("adminError").textContent = "Wrong admin password.";
+      return;
+    }
+    document.getElementById("adminContent").style.display = "block";
+    document.getElementById("adminError").textContent = "";
+    renderUserTable();
+  }
+
+  function renderUserTable() {
+    var tbody = document.getElementById("userTableBody");
+    tbody.innerHTML = "";
+    users.forEach(function(u, i) {
+      var tr = document.createElement("tr");
+      var delBtn = u.role === "Admin" ? "" : '<button class="del-btn" onclick="deleteUser(' + i + ')">Remove</button>';
+      tr.innerHTML = "<td><strong>" + u.empId + "</strong></td><td>" + u.password + "</td><td><span class='badge'>" + u.role + "</span></td><td>" + delBtn + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addUser() {
+    var empId = document.getElementById("newEmpId").value.trim();
+    var pass  = document.getElementById("newPass").value.trim();
+    var err   = document.getElementById("addError");
+    if (!empId || !pass) { err.textContent = "Both fields are required."; return; }
+    if (users.filter(function(u){ return u.empId===empId; }).length) { err.textContent = "Employee ID already exists."; return; }
+    users.push({ empId: empId, password: pass, role: "User" });
+    saveUsers(users);
+    document.getElementById("newEmpId").value = "";
+    document.getElementById("newPass").value = "";
+    err.textContent = "";
+    renderUserTable();
+  }
+
+  function deleteUser(i) {
+    if (!confirm("Remove this user?")) return;
+    users.splice(i, 1);
+    saveUsers(users);
+    renderUserTable();
+  }
+
+  function closeAdmin() {
+    document.getElementById("adminOverlay").style.display = "none";
+    document.getElementById("loginOverlay").style.display = "flex";
+  }
+  // === END ACCESS CONTROL ===
+
+    const TARGET_MIN_DAILY = 60;
+    const TARGET_MAX_DAILY = 70;
+    const DAILY_TARGET = 70;
+    const QUALITY_TARGET = 0.90;
+    const state = { fileName: "", rows: [], columns: [], role: "L1", summary: null };
+    const ooxmlHost = ["schemas", "openxmlformats", "org"].join(".");
+    const ooxml = (path) => `http:${"/".repeat(2)}${ooxmlHost}${path}`;
+
+    const fileInput = document.getElementById("csvFile");
+    const dropzone = document.getElementById("dropzone");
+    const roleSelect = document.getElementById("roleSelect");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const message = document.getElementById("message");
+
+    dropzone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+
+    dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("dragover");
+      const file = event.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+
+    fileInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) loadFile(file);
+    });
+
+    roleSelect.addEventListener("change", () => {
+      if (state.rows.length) prepareReport();
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!state.summary) return;
+      const bytes = buildWorkbook(state.summary);
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeRole = state.summary.role;
+      link.href = url;
+      link.download = `${safeRole}_Agent_Wise_Matrix_Report.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMessage("Excel report downloaded.", "ok");
+    });
+
+    async function loadFile(file) {
+      if (!file.name.toLowerCase().endsWith(".csv")) {
+        setMessage("Please upload a CSV file.", "error");
+        return;
+      }
+      state.fileName = file.name;
+      document.getElementById("fileName").textContent = file.name;
+      const text = await file.text();
+      try {
+        const parsed = parseCSV(text);
+        if (!parsed.rows.length) throw new Error("CSV contains no rows.");
+        state.columns = parsed.headers;
+        state.rows = parsed.rows.map(normalizeRow);
+        prepareReport();
+      } catch (error) {
+        downloadBtn.disabled = true;
+        setMessage(error.message, "error");
+      }
+    }
+
+    function prepareReport() {
+      const required = ["case_id", "status", "created_by", "created_at"];
+      const missing = required.filter((name) => !state.columns.includes(name));
+      if (missing.length) {
+        downloadBtn.disabled = true;
+        setMessage(`Missing required column(s): ${missing.join(", ")}`, "error");
+        return;
+      }
+
+      state.role = detectRole(state.rows);
+      state.summary = summarize(state.rows, state.role, state.fileName);
+      updateUI(state.summary);
+      downloadBtn.disabled = false;
+      setMessage("Report is ready. Click Download Excel.", "ok");
+    }
+
+    function detectRole(rows) {
+      const selected = roleSelect.value;
+      if (selected !== "auto") return selected;
+      const artifactText = rows.map((row) => row.artifact_type || "").join(" ").toUpperCase();
+      if (artifactText.includes("L2-")) return "L2";
+      return "L1";
+    }
+
+    function normalizeRow(row) {
+      const normalized = {};
+      for (const key of Object.keys(row)) normalized[key] = row[key] == null ? "" : String(row[key]).trim();
+      normalized.created_by = normalized.created_by || "Unknown Agent";
+      normalized.status = normalized.status || "UNKNOWN";
+      normalized.case_id = normalized.case_id || "";
+      normalized.created_date = toDateOnly(normalized.created_at);
+      return normalized;
+    }
+
+    function summarize(rows, role, fileName) {
+      const byAgent = new Map();
+      const byDaily = new Map();
+      const dateSet = new Set();
+      const caseSet = new Set();
+      const statusCounts = new Map();
+      let duplicateCount = 0;
+
+      rows.forEach((row) => {
+        if (row.case_id) {
+          if (caseSet.has(row.case_id)) duplicateCount += 1;
+          caseSet.add(row.case_id);
+        }
+        if (row.created_date) dateSet.add(row.created_date);
+        statusCounts.set(row.status, (statusCounts.get(row.status) || 0) + 1);
+        const agent = row.created_by || "Unknown Agent";
+        if (!byAgent.has(agent)) {
+          byAgent.set(agent, {
+            agent,
+            records: 0,
+            uniqueCases: new Set(),
+            activeDays: new Set(),
+            statuses: new Map(),
+            firstDate: "",
+            lastDate: ""
+          });
+        }
+        const item = byAgent.get(agent);
+        item.records += 1;
+        if (row.case_id) item.uniqueCases.add(row.case_id);
+        if (row.created_date) {
+          item.activeDays.add(row.created_date);
+          if (!item.firstDate || row.created_date < item.firstDate) item.firstDate = row.created_date;
+          if (!item.lastDate || row.created_date > item.lastDate) item.lastDate = row.created_date;
+          const dailyKey = `${row.created_date}||${agent}`;
+          if (!byDaily.has(dailyKey)) byDaily.set(dailyKey, { date: row.created_date, agent, total: 0, statuses: new Map() });
+          const dayItem = byDaily.get(dailyKey);
+          dayItem.total += 1;
+          dayItem.statuses.set(row.status, (dayItem.statuses.get(row.status) || 0) + 1);
+        }
+        item.statuses.set(row.status, (item.statuses.get(row.status) || 0) + 1);
+      });
+
+      const totalDays = Math.max(1, dateSet.size);
+      const agents = Array.from(byAgent.values()).map((item) => {
+        const whitelist = item.statuses.get("WHITELIST") || 0;
+        const suspicious = item.statuses.get("SUSPICIOUS") || 0;
+        const activeDays = Math.max(1, item.activeDays.size);
+        const targetTotal = item.activeDays.size * DAILY_TARGET;
+        const avgActive = item.records / activeDays;
+        return {
+          Agent: item.agent,
+          "Alerts Closed / Cases Completed": item.records,
+          "Unique Cases": item.uniqueCases.size,
+          "Working Days": item.activeDays.size,
+          "Avg Cases / Active Day": round(avgActive, 1),
+          "Target Total": targetTotal,
+          "% Obtained": targetTotal ? round((item.records / targetTotal) * 100, 1) : 0,
+          "Target / Benchmark": role === "L2" ? "60-70 cases/day; Accuracy >=90%" : "60-70 cases/day; FP >=90%",
+          "Productivity Status": avgActive >= TARGET_MIN_DAILY ? "Meets benchmark" : "Below benchmark",
+          "TAT Metric": "Not available in source",
+          "Quality Metric": "Not available in source",
+          "Quality Status": role === "L2" ? "Needs L1/L2 correction field" : "Needs L2 correction field",
+          "Whitelist Rate": item.records ? whitelist / item.records : 0,
+          "Suspicious Rate": item.records ? suspicious / item.records : 0,
+          "Whitelist Count": whitelist,
+          "Suspicious Count": suspicious
+        };
+      }).sort((a, b) => b["Alerts Closed / Cases Completed"] - a["Alerts Closed / Cases Completed"] || a.Agent.localeCompare(b.Agent));
+      const totalTarget = agents.reduce((total, row) => total + Number(row["Target Total"] || 0), 0);
+      const totalObtained = totalTarget ? round((rows.length / totalTarget) * 100, 1) : 0;
+
+      const daily = Array.from(byDaily.values()).map((item) => {
+        const whitelist = item.statuses.get("WHITELIST") || 0;
+        const suspicious = item.statuses.get("SUSPICIOUS") || 0;
+        return {
+          Date: item.date,
+          Agent: item.agent,
+          "Total Cases": item.total,
+          WHITELIST: whitelist,
+          SUSPICIOUS: suspicious,
+          "Whitelist %": item.total ? whitelist / item.total : 0,
+          "Suspicious %": item.total ? suspicious / item.total : 0,
+          target: DAILY_TARGET,
+          "% obtained": round((item.total / DAILY_TARGET) * 100, 1)
+        };
+      }).sort((a, b) => a.Date.localeCompare(b.Date) || a.Agent.localeCompare(b.Agent));
+
+      const dates = Array.from(dateSet).sort();
+      const dailyMatrix = agents.map((agentRow) => {
+        const row = { Agent: agentRow.Agent };
+        let total = 0;
+        dates.forEach((date) => {
+          const hit = byDaily.get(`${date}||${agentRow.Agent}`);
+          row[date] = hit ? hit.total : 0;
+          total += row[date];
+        });
+        row.Total = total;
+        return row;
+      });
+
+      const firstDate = dates[0] || "";
+      const lastDate = dates[dates.length - 1] || "";
+      return {
+        role,
+        fileName,
+        rows,
+        agents,
+        daily,
+        dailyMatrix,
+        dates,
+        totalRecords: rows.length,
+        totalTarget,
+        totalObtained,
+        uniqueCases: caseSet.size,
+        duplicateCount,
+        agentCount: byAgent.size,
+        firstDate,
+        lastDate,
+        statusCounts: Object.fromEntries(statusCounts)
+      };
+    }
+
+    function updateUI(summary) {
+      document.getElementById("kpiRecords").textContent = String(summary.totalRecords);
+      document.getElementById("kpiAgents").textContent = String(summary.agentCount);
+      document.getElementById("kpiDate").textContent = summary.firstDate ? `${summary.firstDate} to ${summary.lastDate}` : "-";
+      document.getElementById("kpiRole").textContent = summary.role;
+      const body = document.getElementById("previewRows");
+      body.innerHTML = "";
+      summary.agents.forEach((row) => {
+        const tr = document.createElement("tr");
+        const statusClass = row["Productivity Status"].includes("Meets") ? "status-meets" : "status-below";
+        tr.innerHTML = `
+          <td>${escapeHTML(row.Agent)}</td>
+          <td>${row["Alerts Closed / Cases Completed"]}</td>
+          <td>${row["Working Days"]}</td>
+          <td>${row["Avg Cases / Active Day"]}</td>
+          <td>${row["Target Total"]}</td>
+          <td>${row["% Obtained"]}</td>
+          <td class="${statusClass}">${row["Productivity Status"]}</td>
+          <td>${formatPercent(row["Whitelist Rate"])}</td>
+          <td>${formatPercent(row["Suspicious Rate"])}</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            field += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === "," && !inQuotes) {
+          row.push(field);
+          field = "";
+        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+          if (char === "\r" && next === "\n") i += 1;
+          row.push(field);
+          if (row.some((value) => value !== "")) rows.push(row);
+          row = [];
+          field = "";
+        } else {
+          field += char;
+        }
+      }
+      row.push(field);
+      if (row.some((value) => value !== "")) rows.push(row);
+      if (!rows.length) return { headers: [], rows: [] };
+      const headers = rows.shift().map((header) => header.trim());
+      return {
+        headers,
+        rows: rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])))
+      };
+    }
+
+    function buildIndividualTotalRow(agentDaily) {
+      const totalCases = agentDaily.reduce((total, row) => total + Number(row["Total Cases"] || 0), 0);
+      const totalWhitelist = agentDaily.reduce((total, row) => total + Number(row.WHITELIST || 0), 0);
+      const totalSuspicious = agentDaily.reduce((total, row) => total + Number(row.SUSPICIOUS || 0), 0);
+      const totalTarget = agentDaily.reduce((total, row) => total + Number(row.target || 0), 0);
+      return [
+        "Total",
+        totalCases,
+        totalWhitelist,
+        totalSuspicious,
+        totalCases ? totalWhitelist / totalCases : 0,
+        totalCases ? totalSuspicious / totalCases : 0,
+        totalTarget,
+        totalTarget ? round((totalCases / totalTarget) * 100, 1) : 0
+      ];
+    }
+
+    function buildWorkbook(summary) {
+      const sheets = [];
+      const role = summary.role;
+      const tatName = role === "L2" ? "Review TAT" : "Average TAT per Case";
+      const qualityName = role === "L2" ? "Accuracy of Checks" : "Accuracy / Quality Score";
+      const qualityDescription = role === "L2" ? "% of L1 cases accepted without corrections" : "% of cases accepted by L2 without corrections";
+      const qualityUnavailable = role === "L2" ? "No L1 correction/acceptance outcome field" : "No L2 correction/acceptance outcome field";
+      const metricRows = [
+        ["Metric", "Role (L1/L2)", "Description", "Frequency", "Target / Benchmark", "Workbook Calculation"],
+        ["Alerts Closed / Cases Completed", role, "Number of alerts investigated and closed", "Daily / Weekly", "60-70 cases/day", `Count of records by ${role} agent`],
+        [tatName, role, role === "L2" ? "Average time to review cases" : "Average time taken to investigate an alert", "Daily / Weekly", "Track against agreed SLA", "Not available: source has only created_at"],
+        [qualityName, role, qualityDescription, "Weekly", ">=90%", `Not available: ${qualityUnavailable}`]
+      ];
+      if (role === "L1") {
+        metricRows.push(["False Positive Identification", role, "% of alerts correctly cleared as non-suspicious", "Weekly", ">=90%", "WHITELIST / total alerts"]);
+      }
+
+      const dashboard = [
+        [`April 2026 ${role} Agent Wise Report`],
+        [],
+        ["Total Alerts / Cases Completed", summary.totalRecords, "Unique Cases", summary.uniqueCases, "Agents", summary.agentCount],
+        ["Total Target", summary.totalTarget, "Total % Obtained", summary.totalObtained, "Benchmark", `${TARGET_MIN_DAILY}-${TARGET_MAX_DAILY} cases/day`],
+        ["Date Range", summary.firstDate && summary.lastDate ? `${summary.firstDate} to ${summary.lastDate}` : "", "Whitelist Share", ratio(summary.statusCounts.WHITELIST, summary.totalRecords), "Suspicious Share", ratio(summary.statusCounts.SUSPICIOUS, summary.totalRecords)],
+        [],
+        ...metricRows,
+        [],
+        ["Agent", "Total Cases", "Whitelist", "Suspicious", "Target", "% obtained"],
+        ...summary.agents.map((row) => [
+          row.Agent,
+          row["Alerts Closed / Cases Completed"],
+          row["Whitelist Count"],
+          row["Suspicious Count"],
+          row["Target Total"],
+          row["% Obtained"]
+        ])
+      ];
+      sheets.push({ name: "Dashboard", rows: dashboard, widths: [32, 16, 20, 16, 20, 28] });
+
+      const matrixHeader = [
+        "Agent",
+        "Alerts Closed / Cases Completed",
+        "Unique Cases",
+        "Working Days",
+        "Avg Cases / Active Day",
+        "Target Total",
+        "% Obtained",
+        "Target / Benchmark",
+        "Productivity Status",
+        tatName,
+        qualityName,
+        "Quality Status",
+        "Whitelist Rate",
+        "Suspicious Rate",
+        "Whitelist Count",
+        "Suspicious Count"
+      ];
+      sheets.push({
+        name: "Agent Matrix",
+        rows: [matrixHeader, ...summary.agents.map((row) => [
+          row.Agent,
+          row["Alerts Closed / Cases Completed"],
+          row["Unique Cases"],
+          row["Working Days"],
+          row["Avg Cases / Active Day"],
+          row["Target Total"],
+          row["% Obtained"],
+          row["Target / Benchmark"],
+          row["Productivity Status"],
+          row["TAT Metric"],
+          row["Quality Metric"],
+          row["Quality Status"],
+          row["Whitelist Rate"],
+          row["Suspicious Rate"],
+          row["Whitelist Count"],
+          row["Suspicious Count"]
+        ])],
+        widths: [22, 18, 13, 13, 14, 13, 13, 30, 18, 24, 24, 28, 14, 14, 14, 14]
+      });
+
+      const dailyMatrixHeader = ["Agent", ...summary.dates, "Total"];
+      sheets.push({
+        name: "Daily Matrix",
+        rows: [dailyMatrixHeader, ...summary.dailyMatrix.map((row) => dailyMatrixHeader.map((key) => row[key]))],
+        widths: [22, ...summary.dates.map(() => 11), 12]
+      });
+
+      const dailyHeader = ["Date", "Agent", "Total Cases", "WHITELIST", "SUSPICIOUS", "Whitelist %", "Suspicious %", "target", "% obtained"];
+      sheets.push({
+        name: "Daily Detail",
+        rows: [dailyHeader, ...summary.daily.map((row) => dailyHeader.map((key) => row[key]))],
+        widths: [14, 22, 13, 13, 13, 13, 13, 10, 12]
+      });
+
+      summary.agents.forEach((agentRow) => {
+        const agentDaily = summary.daily.filter((row) => row.Agent === agentRow.Agent);
+        const rows = [
+          [`${agentRow.Agent} - Individual ${role} Report`],
+          [],
+          ["Metric", "Role", "Description", "Frequency", "Target / Benchmark", "Result", "Status"],
+          ["Alerts Closed / Cases Completed", role, "Number of alerts investigated and closed", "Daily / Weekly", `${TARGET_MIN_DAILY}-${TARGET_MAX_DAILY} cases/day`, agentRow["Alerts Closed / Cases Completed"], agentRow["Productivity Status"]],
+          [tatName, role, role === "L2" ? "Average time to review cases" : "Average time taken to investigate an alert", "Daily / Weekly", "SLA target required", "Not available in source", "Needs timestamp fields"],
+          [qualityName, role, qualityDescription, "Weekly", ">=90%", "Not available in source", "Needs correction/acceptance field"],
+          ["Whitelist Rate", role, "% reviews closed as whitelist", "Weekly", "Monitoring metric", agentRow["Whitelist Rate"], "Monitor"],
+          ["Suspicious Rate", role, "% reviews closed as suspicious", "Weekly", "Monitoring metric", agentRow["Suspicious Rate"], "Monitor"],
+          [],
+          dailyHeader.filter((key) => key !== "Agent"),
+          ...agentDaily.map((row) => dailyHeader.filter((key) => key !== "Agent").map((key) => row[key])),
+          buildIndividualTotalRow(agentDaily)
+        ];
+        sheets.push({ name: cleanSheetName(agentRow.Agent), rows, widths: [28, 13, 13, 13, 13, 13, 10, 12] });
+      });
+
+      sheets.push({
+        name: "Assumptions & Checks",
+        rows: [
+          ["Item", "Value", "Note"],
+          ["Source file", summary.fileName, "Uploaded in browser"],
+          ["Rows loaded", summary.totalRecords, `Total ${role} investigation remark records`],
+          ["Duplicate case_id rows", summary.duplicateCount, "Review if unique-case productivity is required"],
+          [tatName, "Not calculated", "CSV has created_at only; no start and finish timestamps"],
+          [qualityName, "Not calculated", qualityUnavailable],
+          ["Status split", "WHITELIST and SUSPICIOUS", "Reported as outcome mix, not quality score"],
+          ["Benchmark", `${TARGET_MIN_DAILY}-${TARGET_MAX_DAILY} cases/day; daily target ${DAILY_TARGET}; >=90% quality metric`, "From matrix supplied by user"]
+        ],
+        widths: [28, 58, 58]
+      });
+
+      const sourceColumns = ["id", "case_id", "artifact_type", "status", "created_by", "created_at", "year", "month", "day", "details"];
+      sheets.push({
+        name: "Source Data",
+        rows: [sourceColumns, ...summary.rows.map((row) => sourceColumns.map((key) => key === "details" ? (row[key] || "").slice(0, 1000) : row[key]))],
+        widths: [13, 15, 25, 13, 22, 24, 8, 8, 8, 60]
+      });
+
+      return createXlsx(sheets);
+    }
+
+    function createXlsx(sheets) {
+      const files = [];
+      files.push(["[Content_Types].xml", contentTypesXML(sheets)]);
+      files.push(["_rels/.rels", rootRelsXML()]);
+      files.push(["xl/workbook.xml", workbookXML(sheets)]);
+      files.push(["xl/_rels/workbook.xml.rels", workbookRelsXML(sheets)]);
+      files.push(["xl/styles.xml", stylesXML()]);
+      sheets.forEach((sheet, index) => {
+        files.push([`xl/worksheets/sheet${index + 1}.xml`, worksheetXML(sheet)]);
+      });
+      return zipStore(files);
+    }
+
+    function worksheetXML(sheet) {
+      const cols = (sheet.widths || []).map((width, index) =>
+        `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`
+      ).join("");
+      const rows = sheet.rows.map((row, rowIndex) => {
+        const rowKind = isTotalRow(row) ? "total" : ((rowIndex === 0 || isTitleRow(row, rowIndex)) ? "header" : "normal");
+        const cells = row.map((value, colIndex) => cellXML(value, rowIndex + 1, colIndex + 1, rowKind)).join("");
+        const height = rowIndex === 0 && row.length === 1 ? ' ht="24" customHeight="1"' : "";
+        return `<row r="${rowIndex + 1}"${height}>${cells}</row>`;
+      }).join("");
+      return xmlHeader() +
+        `<worksheet xmlns="${ooxml("/spreadsheetml/2006/main")}">` +
+        `<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews>` +
+        `<cols>${cols}</cols><sheetData>${rows}</sheetData></worksheet>`;
+    }
+
+    function cellXML(value, rowNumber, colNumber, rowKind) {
+      if (value == null) value = "";
+      const ref = `${columnName(colNumber)}${rowNumber}`;
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const style = rowKind === "total" ? 5 : (value > 0 && value < 1 ? 3 : (rowKind === "header" ? 1 : 0));
+        return `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
+      }
+      const text = String(value);
+      const style = rowKind === "total" ? 5 : (rowKind === "header" ? 1 : (text.includes("Not available") || text.includes("Needs") ? 4 : 0));
+      return `<c r="${ref}" t="inlineStr" s="${style}"><is><t>${escapeXML(text)}</t></is></c>`;
+    }
+
+    function isTitleRow(row, rowIndex) {
+      return rowIndex === 0 || (row.length && ["Metric", "Agent", "Date", "Item"].includes(String(row[0])));
+    }
+
+    function isTotalRow(row) {
+      return row.length && String(row[0]).toLowerCase() === "total";
+    }
+
+    function contentTypesXML(sheets) {
+      const sheetTypes = sheets.map((_, index) =>
+        `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+      ).join("");
+      return xmlHeader() +
+        `<Types xmlns="${ooxml("/package/2006/content-types")}">` +
+        `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+        `<Default Extension="xml" ContentType="application/xml"/>` +
+        `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+        `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+        sheetTypes + `</Types>`;
+    }
+
+    function rootRelsXML() {
+      return xmlHeader() +
+        `<Relationships xmlns="${ooxml("/package/2006/relationships")}">` +
+        `<Relationship Id="rId1" Type="${ooxml("/officeDocument/2006/relationships/officeDocument")}" Target="xl/workbook.xml"/>` +
+        `</Relationships>`;
+    }
+
+    function workbookXML(sheets) {
+      const sheetTags = sheets.map((sheet, index) =>
+        `<sheet name="${escapeXML(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`
+      ).join("");
+      return xmlHeader() +
+        `<workbook xmlns="${ooxml("/spreadsheetml/2006/main")}" xmlns:r="${ooxml("/officeDocument/2006/relationships")}">` +
+        `<sheets>${sheetTags}</sheets></workbook>`;
+    }
+
+    function workbookRelsXML(sheets) {
+      const rels = sheets.map((_, index) =>
+        `<Relationship Id="rId${index + 1}" Type="${ooxml("/officeDocument/2006/relationships/worksheet")}" Target="worksheets/sheet${index + 1}.xml"/>`
+      ).join("");
+      return xmlHeader() +
+        `<Relationships xmlns="${ooxml("/package/2006/relationships")}">` +
+        rels +
+        `<Relationship Id="rId${sheets.length + 1}" Type="${ooxml("/officeDocument/2006/relationships/styles")}" Target="styles.xml"/>` +
+        `</Relationships>`;
+    }
+
+    function stylesXML() {
+      return xmlHeader() +
+        `<styleSheet xmlns="${ooxml("/spreadsheetml/2006/main")}">` +
+        `<fonts count="2"><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>` +
+        `<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF00B050"/></patternFill></fill></fills>` +
+        `<borders count="2"><border/><border><left style="thin"><color rgb="FFD9E2F3"/></left><right style="thin"><color rgb="FFD9E2F3"/></right><top style="thin"><color rgb="FFD9E2F3"/></top><bottom style="thin"><color rgb="FFD9E2F3"/></bottom></border></borders>` +
+        `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+        `<cellXfs count="6">` +
+        `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>` +
+        `<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment wrapText="1"/></xf>` +
+        `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment wrapText="1"/></xf>` +
+        `<xf numFmtId="10" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>` +
+        `<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment wrapText="1"/></xf>` +
+        `<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+        `</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    }
+
+    function zipStore(files) {
+      const encoder = new TextEncoder();
+      const records = [];
+      const central = [];
+      let offset = 0;
+      files.forEach(([name, content]) => {
+        const nameBytes = encoder.encode(name);
+        const dataBytes = encoder.encode(content);
+        const crc = crc32(dataBytes);
+        const local = concatBytes(
+          u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc),
+          u32(dataBytes.length), u32(dataBytes.length), u16(nameBytes.length), u16(0), nameBytes, dataBytes
+        );
+        records.push(local);
+        const centralRecord = concatBytes(
+          u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc),
+          u32(dataBytes.length), u32(dataBytes.length), u16(nameBytes.length), u16(0), u16(0),
+          u16(0), u16(0), u32(0), u32(offset), nameBytes
+        );
+        central.push(centralRecord);
+        offset += local.length;
+      });
+      const centralStart = offset;
+      const centralBlob = concatBytes(...central);
+      const end = concatBytes(
+        u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length),
+        u32(centralBlob.length), u32(centralStart), u16(0)
+      );
+      return concatBytes(...records, centralBlob, end);
+    }
+
+    let crcTable = null;
+    function crc32(bytes) {
+      if (!crcTable) {
+        crcTable = new Uint32Array(256);
+        for (let i = 0; i < 256; i += 1) {
+          let c = i;
+          for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+          crcTable[i] = c >>> 0;
+        }
+      }
+      let crc = 0xffffffff;
+      for (const b of bytes) crc = crcTable[(crc ^ b) & 0xff] ^ (crc >>> 8);
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    function u16(value) {
+      const bytes = new Uint8Array(2);
+      new DataView(bytes.buffer).setUint16(0, value, true);
+      return bytes;
+    }
+
+    function u32(value) {
+      const bytes = new Uint8Array(4);
+      new DataView(bytes.buffer).setUint32(0, value >>> 0, true);
+      return bytes;
+    }
+
+    function concatBytes(...chunks) {
+      const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
+      const output = new Uint8Array(length);
+      let offset = 0;
+      chunks.forEach((chunk) => {
+        output.set(chunk, offset);
+        offset += chunk.length;
+      });
+      return output;
+    }
+
+    function columnName(index) {
+      let name = "";
+      while (index > 0) {
+        const rem = (index - 1) % 26;
+        name = String.fromCharCode(65 + rem) + name;
+        index = Math.floor((index - 1) / 26);
+      }
+      return name;
+    }
+
+    function cleanSheetName(name) {
+      return String(name).replace(/[\[\]:*?/\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 31) || "Agent";
+    }
+
+    function toDateOnly(value) {
+      if (!value) return "";
+      const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+    }
+
+    function ratio(value, total) {
+      return total ? (Number(value || 0) / total) : 0;
+    }
+
+    function round(value, decimals) {
+      const factor = 10 ** decimals;
+      return Math.round(value * factor) / factor;
+    }
+
+    function formatPercent(value) {
+      return `${(Number(value || 0) * 100).toFixed(1)}%`;
+    }
+
+    function setMessage(text, type) {
+      message.textContent = text;
+      message.className = `message ${type || ""}`.trim();
+    }
+
+    function escapeHTML(text) {
+      return String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+
+    function escapeXML(text) {
+      return String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[char]));
+    }
+
+    function xmlHeader() {
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    }
+  </script>
+</body>
+</html>
